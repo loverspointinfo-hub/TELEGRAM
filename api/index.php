@@ -9,11 +9,18 @@ if (!isset($_GET['info']) || empty($_GET['info'])) {
     exit;
 }
 
+// Sanitize inputs
 $info_query = urlencode($_GET['info']);
 $api_key = "ftgamer";
 
-// Construct the target API URL
-$target_url = "https://broad-dust-ad2f.mohammadumar7221.workers.dev/api/combined?key={$api_key}&info={$info_query}";
+// Check for the optional 'demo' parameter
+$demo_query = "";
+if (isset($_GET['demo']) && !empty($_GET['demo'])) {
+    $demo_query = "&demo=" . urlencode($_GET['demo']);
+}
+
+// Construct the target API URL, appending the demo parameter if it exists
+$target_url = "https://broad-dust-ad2f.mohammadumar7221.workers.dev/api/combined?key={$api_key}&info={$info_query}{$demo_query}";
 
 // Initialize cURL session
 $ch = curl_init();
