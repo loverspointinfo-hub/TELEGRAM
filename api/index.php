@@ -1,83 +1,45 @@
 <?php
-/**
- * Fetch user information from the Telegram API endpoint.
- *
- * @param int $tgId The Telegram user ID to look up.
- * @param string $apiKey The API key required by the endpoint. Default is 'ftgamer'.
- * @return array|null Returns an associative array with 'success' and 'data' or 'error' keys,
- *                     or null if the request fails completely.
- */
-function getTelegramUserInfo(int $tgId, string $apiKey = 'ftgamer'): ?array {
-    // Construct the full URL with query parameters
-    $baseUrl = 'https://broad-dust-ad2f.mohammadumar7221.workers.dev/api/tg';
-    $queryParams = http_build_query([
-        'key' => $apiKey,
-        'info' => $tgId
-    ]);
-    $fullUrl = $baseUrl . '?' . $queryParams;
 
-    // Initialize cURL session
-    $ch = curl_init($fullUrl);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,   // Return response as string
-        CURLOPT_TIMEOUT => 30,            // Maximum execution time in seconds
-        CURLOPT_FOLLOWLOCATION => true,   // Follow redirects if any
-        CURLOPT_HTTPHEADER => [
-            'Accept: application/json',   // Expect JSON response
-            'User-Agent: PHP-API-Client/1.0'
-        ]
-    ]);
+// 1. Get the Telegram ID from the URL (e.g., yourscript.php?id=123456789)
+// If no ID is provided in the URL, it defaults to a placeholder.
+$tg_id = isset($_GET['id']) ? $_GET['id'] : 'YOUR_TG_ID_HERE';
 
-    // Execute the request
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curlError = curl_error($ch);
-    curl_close($ch);
+// 2. Define the base API URL and your parameters
+$base_url = "https://broad-dust-ad2f.mohammadumar7221.workers.dev/api/tg";
+$key = "ftgamer";
 
-    // Handle cURL errors
-    if ($response === false) {
-        error_log("cURL Error: " . $curlError);
-        return ['success' => false, 'error' => 'Connection error: ' . $curlError];
-    }
+// 3. Construct the full API link
+// urlencode() ensures that any special characters are safely formatted for a URL
+$api_link = $base_url . "?key=" . urlencode($key) . "&info=" . urlencode($tg_id);
 
-    // Decode JSON response
-    $decodedResponse = json_decode($response, true);
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        error_log("JSON Decode Error: " . json_last_error_msg() . " | Raw Response: " . substr($response, 0, 500));
-        return ['success' => false, 'error' => 'Invalid JSON response from server'];
-    }
+// --- Optional: Fetch the data from the API ---
 
-    // Check HTTP status code
-    if ($httpCode !== 200) {
-        return [
-            'success' => false,
-            'error' => 'Server returned HTTP ' . $httpCode,
-            'details' => $decodedResponse ?? $response
-        ];
-    }
+// Initialize cURL session
+$ch = curl_init();
 
-    // Return successful response with data
-    return ['success' => true, 'data' => $decodedResponse];
-}
+// Set cURL options
+curl_setopt($ch, CURLOPT_URL, $api_link);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); // Return the response as a string
 
-// --- Example Usage ---
+// Execute the request and fetch the response
+$response = curl_exec($ch);
 
-// Replace with the actual Telegram ID you want to query
-$telegramId = 123456789;
-
-$result = getTelegramUserInfo($telegramId);
-
-if ($result === null) {
-    echo "An unexpected error occurred during the request process.";
-} elseif ($result['success'] === true) {
-    echo "API call successful!\n";
-    echo "Response Data:\n";
-    print_r($result['data']);
+// Check if there were any errors during the request
+if(curl_errno($ch)){
+    echo 'cURL Error: ' . curl_error($ch);
 } else {
-    echo "API call failed.\n";
-    echo "Error: " . $result['error'] . "\n";
-    if (isset($result['details'])) {
-        echo "Details: " . print_r($result['details'], true) . "\n";
-    }
+    // Print the generated link and the API's response
+    echo "<b>Generated API Link:</b> <a href='{$api_link}' target='_blank'>{$api_link}</a><br><br>";
+    echo "<b>API Response:</b><br>";
+    
+    // If the API returns JSON, you can decode it like this:
+    // $json_data = json_decode($response, true);
+    
+    // Display the raw response securely
+    echo "<pre>" . htmlspecialchars($response) . "</pre>";
 }
+
+// Close the cURL session to free up resources
+curl_close($ch);
+
 ?>
