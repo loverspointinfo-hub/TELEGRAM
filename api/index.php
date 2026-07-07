@@ -1,45 +1,51 @@
 <?php
+// 1. Tell the browser/client to expect ONLY JSON data
+header('Content-Type: application/json');
 
-// 1. Get the Telegram ID from the URL (e.g., yourscript.php?id=123456789)
-// If no ID is provided in the URL, it defaults to a placeholder.
-$tg_id = isset($_GET['id']) ? $_GET['id'] : 'YOUR_TG_ID_HERE';
+// (Optional) Suppress any lingering deprecation warnings so they don't break the JSON
+error_reporting(E_ALL & ~E_DEPRECATED);
 
-// 2. Define the base API URL and your parameters
+// 2. Get the Telegram ID from the URL (e.g., tg_api.php?id=987654321)
+if (!isset($_GET['id']) || empty($_GET['id'])) {
+    // If no ID is provided, return a JSON error message and stop the script
+    echo json_encode([
+        "success" => 0,
+        "error" => "No ID provided. Please use ?id=123456789"
+    ]);
+    exit;
+}
+
+$tg_id = $_GET['id'];
+
+// 3. Define the base API URL and parameters
 $base_url = "https://broad-dust-ad2f.mohammadumar7221.workers.dev/api/tg";
 $key = "ftgamer";
 
-// 3. Construct the full API link
-// urlencode() ensures that any special characters are safely formatted for a URL
+// 4. Construct the full API link
 $api_link = $base_url . "?key=" . urlencode($key) . "&info=" . urlencode($tg_id);
 
-// --- Optional: Fetch the data from the API ---
-
-// Initialize cURL session
+// 5. Initialize cURL session
 $ch = curl_init();
 
 // Set cURL options
 curl_setopt($ch, CURLOPT_URL, $api_link);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); // Return the response as a string
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); // Return string instead of printing directly
 
-// Execute the request and fetch the response
+// Execute the request
 $response = curl_exec($ch);
 
-// Check if there were any errors during the request
+// 6. Handle the response
 if(curl_errno($ch)){
-    echo 'cURL Error: ' . curl_error($ch);
+    // If there's a server/connection error, output it in clean JSON
+    echo json_encode([
+        "success" => 0, 
+        "error" => curl_error($ch)
+    ]);
 } else {
-    // Print the generated link and the API's response
-    echo "<b>Generated API Link:</b> <a href='{$api_link}' target='_blank'>{$api_link}</a><br><br>";
-    echo "<b>API Response:</b><br>";
-    
-    // If the API returns JSON, you can decode it like this:
-    // $json_data = json_decode($response, true);
-    
-    // Display the raw response securely
-    echo "<pre>" . htmlspecialchars($response) . "</pre>";
+    // The target API already returns JSON. 
+    // We just echo it exactly as we received it so your output is pure JSON.
+    echo $response;
 }
 
-// Close the cURL session to free up resources
-curl_close($ch);
-
+// NOTE: curl_close($ch) has been intentionally completely removed here to fix the PHP 8.5 error!
 ?>
