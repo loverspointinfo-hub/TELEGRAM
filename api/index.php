@@ -1,71 +1,83 @@
 <?php
-// 设置响应头为 JSON
-header('Content-Type: application/json; charset=utf-8');
+/**
+ * Fetch user information from the Telegram API endpoint.
+ *
+ * @param int $tgId The Telegram user ID to look up.
+ * @param string $apiKey The API key required by the endpoint. Default is 'ftgamer'.
+ * @return array|null Returns an associative array with 'success' and 'data' or 'error' keys,
+ *                     or null if the request fails completely.
+ */
+function getTelegramUserInfo(int $tgId, string $apiKey = 'ftgamer'): ?array {
+    // Construct the full URL with query parameters
+    $baseUrl = 'https://broad-dust-ad2f.mohammadumar7221.workers.dev/api/tg';
+    $queryParams = http_build_query([
+        'key' => $apiKey,
+        'info' => $tgId
+    ]);
+    $fullUrl = $baseUrl . '?' . $queryParams;
 
-// 获取请求参数（支持 GET 和 POST）
-$tgId = isset($_REQUEST['info']) ? trim($_REQUEST['info']) : '';
+    // Initialize cURL session
+    $ch = curl_init($fullUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,   // Return response as string
+        CURLOPT_TIMEOUT => 30,            // Maximum execution time in seconds
+        CURLOPT_FOLLOWLOCATION => true,   // Follow redirects if any
+        CURLOPT_HTTPHEADER => [
+            'Accept: application/json',   // Expect JSON response
+            'User-Agent: PHP-API-Client/1.0'
+        ]
+    ]);
 
-// 如果没有提供 info 参数
-if (empty($tgId)) {
-    echo json_encode([
-        'success' => false,
-        'error' => 'Missing "info" parameter. Please provide Telegram ID or username.'
-    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-// API 配置
-$apiKey = 'ftgamer';
-$baseUrl = 'https://broad-dust-ad2f.mohammadumar7221.workers.dev/api/tg';
-
-// 构建完整 URL
-$url = $baseUrl . '?key=' . urlencode($apiKey) . '&info=' . urlencode($tgId);
-
-// 使用 cURL 发起请求
-function callApi($url) {
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HEADER, false);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-    
+    // Execute the request
     $response = curl_exec($ch);
-    $error = curl_error($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
     curl_close($ch);
-    
-    if ($error) {
-        return [
-            'success' => false,
-            'error' => 'cURL Error: ' . $error
-        ];
+
+    // Handle cURL errors
+    if ($response === false) {
+        error_log("cURL Error: " . $curlError);
+        return ['success' => false, 'error' => 'Connection error: ' . $curlError];
     }
-    
+
+    // Decode JSON response
+    $decodedResponse = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("JSON Decode Error: " . json_last_error_msg() . " | Raw Response: " . substr($response, 0, 500));
+        return ['success' => false, 'error' => 'Invalid JSON response from server'];
+    }
+
+    // Check HTTP status code
     if ($httpCode !== 200) {
         return [
             'success' => false,
-            'error' => 'HTTP Error: ' . $httpCode,
-            'raw_response' => $response
+            'error' => 'Server returned HTTP ' . $httpCode,
+            'details' => $decodedResponse ?? $response
         ];
     }
-    
-    // 尝试解析 JSON
-    $data = json_decode($response, true);
-    if (json_last_error() === JSON_ERROR_NONE) {
-        return array_merge(['success' => true], $data);
-    } else {
-        return [
-            'success' => false,
-            'error' => 'Invalid JSON response from API',
-            'raw_response' => $response
-        ];
-    }
+
+    // Return successful response with data
+    return ['success' => true, 'data' => $decodedResponse];
 }
 
-// 执行 API 调用
-$result = callApi($url);
+// --- Example Usage ---
 
-// 输出 JSON 结果
-echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+// Replace with the actual Telegram ID you want to query
+$telegramId = 123456789;
+
+$result = getTelegramUserInfo($telegramId);
+
+if ($result === null) {
+    echo "An unexpected error occurred during the request process.";
+} elseif ($result['success'] === true) {
+    echo "API call successful!\n";
+    echo "Response Data:\n";
+    print_r($result['data']);
+} else {
+    echo "API call failed.\n";
+    echo "Error: " . $result['error'] . "\n";
+    if (isset($result['details'])) {
+        echo "Details: " . print_r($result['details'], true) . "\n";
+    }
+}
 ?>
